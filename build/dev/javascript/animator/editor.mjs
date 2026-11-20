@@ -5,7 +5,7 @@ import * as $effect from "../lustre/lustre/effect.mjs";
 import * as $element from "../lustre/lustre/element.mjs";
 import * as $html from "../lustre/lustre/element/html.mjs";
 import * as $event from "../lustre/lustre/event.mjs";
-import { mountEditor as do_mount } from "./editor_ffi.mjs";
+import { mountEditor as do_mount, insertSnippet as do_insert } from "./editor_ffi.mjs";
 import {
   toList,
   List$Empty$const as $List$Empty$const,
@@ -34,6 +34,13 @@ export function mount(text, on_change) {
       return do_mount(text, (t) => { return dispatch(on_change(t)); });
     },
   );
+}
+
+/**
+ * Insert text at the cursor. The editor's normal change callback saves it.
+ */
+export function insert(text) {
+  return $effect.from((_) => { return do_insert(text); });
 }
 
 function list_functions() {
@@ -124,6 +131,10 @@ function functions() {
       "a point on the canvas: (0, 0) is the center, x and y run from -500 to 500, and y grows downward",
     ),
     new RefEntry("Line(start: Point, end: Point)", "a straight-line shape"),
+    new RefEntry(
+      "ColorLine(start, end, color)",
+      "a line in red(), blue(), green(), yellow(), purple(), orange(), white(), black(), or RGB(r, g, b)",
+    ),
     new RefEntry(
       "Path(shape, start: Int, end: Int, thickness: Int)",
       "draws a shape between times `start` and `end`, in 1/10 s (end <= start draws it instantly)",

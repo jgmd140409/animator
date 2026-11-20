@@ -19,6 +19,10 @@ let clock = 0; // the drawing's time, in tenths of a second, in [0, endClock]
 let lastTs = 0;
 let running = false;
 let framesWithoutCanvas = 0;
+// Path Runner draws on top of the paths inside this same frame, and may
+// advance the game from it. A null listener means drawing mode.
+let actors = null;
+let frameListener = null;
 
 const TENTHS_PER_SECOND = 10;
 // How many frames (about 10 seconds' worth) to wait for the canvas to appear
@@ -75,10 +79,84 @@ export function resetClock() {
   clock = 0;
 }
 
+export function setActors(scene) {
+  actors = scene;
+}
+
+export function clearActors() {
+  actors = null;
+}
+
+export function setFrameListener(fn) {
+  frameListener = fn;
+}
+
+export function clearFrameListener() {
+  frameListener = null;
+}
+
+const heldKeys = new Set();
+
+function aimFromKeys() {
+  let x = 0;
+  let y = 0;
+  if (heldKeys.has("arrowleft") || heldKeys.has("a")) x -= 1;
+  if (heldKeys.has("arrowright") || heldKeys.has("d")) x += 1;
+  if (heldKeys.has("arrowup") || heldKeys.has("w")) y -= 1;
+  if (heldKeys.has("arrowdown") || heldKeys.has("s")) y += 1;
+  return { x, y };
+}
+
+let keyDown = null;
+let keyUp = null;
+
+export function watchKeys(onAim) {
+  clearKeys();
+  keyDown = (event) => {
+    const key = event.key.toLowerCase();
+    if (!aimKey(key)) return;
+    event.preventDefault();
+    heldKeys.add(key);
+    const aim = aimFromKeys();
+    onAim(aim.x, aim.y);
+  };
+  keyUp = (event) => {
+    const key = event.key.toLowerCase();
+    if (!aimKey(key)) return;
+    heldKeys.delete(key);
+    const aim = aimFromKeys();
+    onAim(aim.x, aim.y);
+  };
+  window.addEventListener("keydown", keyDown);
+  window.addEventListener("keyup", keyUp);
+}
+
+function aimKey(key) {
+  return (
+    key === "arrowleft" ||
+    key === "arrowright" ||
+    key === "arrowup" ||
+    key === "arrowdown" ||
+    key === "a" ||
+    key === "d" ||
+    key === "w" ||
+    key === "s"
+  );
+}
+
+export function clearKeys() {
+  if (keyDown) window.removeEventListener("keydown", keyDown);
+  if (keyUp) window.removeEventListener("keyup", keyUp);
+  keyDown = null;
+  keyUp = null;
+  heldKeys.clear();
+}
+
 function frame(ts) {
   // Cap dt so a backgrounded/paused tab can't jump the clock far ahead.
   const dt = Math.min((ts - lastTs) / 1000, 0.1);
   lastTs = ts;
+  if (frameListener) frameListener(dt);
   // The clock runs forward, each path drawing in over its window and then
   // staying; there is no loop back to an empty canvas. It is bounded at both
   // ends: reverse rewinds only as far as the start (0), and forward stops the
@@ -145,6 +223,48 @@ function render() {
       drawUpToU(p, u);
     }
   }
+  if (actors) drawActors(actors);
+}
+
+function gleamItems(list) {
+  const items = [];
+  for (let cell = list; cell && Object.hasOwn(cell, "head"); cell = cell.tail) {
+    items.push(cell.head);
+  }
+  return items;
+}
+
+function drawActors(scene) {
+  for (const gem of gleamItems(scene.gems)) {
+    ctx.beginPath();
+    ctx.arc(gem.x, gem.y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffd27a";
+    ctx.fill();
+  }
+  for (const enemy of gleamItems(scene.enemies)) {
+    ctx.beginPath();
+    if (enemy.kind === 0) {
+      ctx.moveTo(enemy.x, enemy.y - 12);
+      ctx.lineTo(enemy.x + 10, enemy.y);
+      ctx.lineTo(enemy.x, enemy.y + 12);
+      ctx.lineTo(enemy.x - 10, enemy.y);
+    } else {
+      ctx.moveTo(enemy.x, enemy.y - 13);
+      ctx.lineTo(enemy.x + 11, enemy.y + 9);
+      ctx.lineTo(enemy.x - 11, enemy.y + 9);
+    }
+    ctx.closePath();
+    ctx.fillStyle = enemy.kind === 0 ? "#ff5d73" : "#ff9a3c";
+    ctx.fill();
+  }
+  const player = scene.player;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, 9, 0, Math.PI * 2);
+  ctx.fillStyle = scene.hurt ? "#ffb4c0" : "#f4f7ff";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#3ad6e0";
+  ctx.stroke();
 }
 
 // How much of a path is revealed now: its parameter u ∈ [0, 1], advancing

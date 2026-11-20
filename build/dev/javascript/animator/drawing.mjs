@@ -19,6 +19,7 @@ import {
   Arc,
   Circle,
   Color,
+  ColorLine,
   Curve,
   Fade,
   Line,
@@ -28,6 +29,20 @@ import {
   Polygon,
   Spiral,
 } from "./shape.mjs";
+
+function clamp_channel(channel) {
+  let $ = channel < 0;
+  if ($) {
+    return 0;
+  } else {
+    let $1 = channel > 255;
+    if ($1) {
+      return 255;
+    } else {
+      return channel;
+    }
+  }
+}
 
 function to_color(v) {
   if (v instanceof VData) {
@@ -48,11 +63,33 @@ function to_color(v) {
             let $4 = $1.head;
             if ($4 instanceof VInt) {
               let $5 = $2.head;
-              if ($5 instanceof VInt && v.tag === "Rgb") {
-                let r = $3[0];
-                let g = $4[0];
-                let b = $5[0];
-                return new Ok(new Color(r, g, b));
+              if ($5 instanceof VInt) {
+                let $6 = v.tag;
+                if ($6 === "Rgb") {
+                  let r = $3[0];
+                  let g = $4[0];
+                  let b = $5[0];
+                  return new Ok(
+                    new Color(
+                      clamp_channel(r),
+                      clamp_channel(g),
+                      clamp_channel(b),
+                    ),
+                  );
+                } else if ($6 === "RGB") {
+                  let r = $3[0];
+                  let g = $4[0];
+                  let b = $5[0];
+                  return new Ok(
+                    new Color(
+                      clamp_channel(r),
+                      clamp_channel(g),
+                      clamp_channel(b),
+                    ),
+                  );
+                } else {
+                  return new Error(new BadDrawing("expected an Rgb color"));
+                }
               } else {
                 return new Error(new BadDrawing("expected an Rgb color"));
               }
@@ -177,7 +214,25 @@ function to_shape(v) {
           let $3 = $2.tail;
           if ($3 instanceof $Empty) {
             let $4 = v.tag;
-            if ($4 === "Curve") {
+            if ($4 === "ColorLine") {
+              let start = $.head;
+              let end = $1.head;
+              let color = $2.head;
+              return $result.try$(
+                to_point(start),
+                (a) => {
+                  return $result.try$(
+                    to_point(end),
+                    (b) => {
+                      return $result.try$(
+                        to_color(color),
+                        (c) => { return new Ok(new ColorLine(a, b, c)); },
+                      );
+                    },
+                  );
+                },
+              );
+            } else if ($4 === "Curve") {
               let start = $.head;
               let control = $1.head;
               let end = $2.head;

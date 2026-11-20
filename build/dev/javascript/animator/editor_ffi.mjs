@@ -160,6 +160,12 @@ function reattachEditor() {
   if (document.activeElement === document.body) cmView.focus();
 }
 
+export function insertSnippet(text) {
+  if (!cmView) return;
+  cmView.focus();
+  cmView.dispatch(cmView.state.replaceSelection(text));
+}
+
 export function mountEditor(initialText, onChange) {
   // Tear down any editor from a previous drawing first, so mounting is
   // self-contained: switching drawings just calls this again.

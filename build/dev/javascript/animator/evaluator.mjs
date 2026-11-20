@@ -334,6 +334,20 @@ export const constructors = /* @__PURE__ */ toList([
     /* @__PURE__ */ listPrepend("start", listPrepend("end", $List$Empty$const)),
   ],
   [
+    "ColorLine",
+    /* @__PURE__ */ listPrepend(
+      "start",
+      listPrepend("end", listPrepend("color", $List$Empty$const)),
+    ),
+  ],
+  [
+    "RGB",
+    /* @__PURE__ */ listPrepend(
+      "r",
+      listPrepend("g", listPrepend("b", $List$Empty$const)),
+    ),
+  ],
+  [
     "Circle",
     /* @__PURE__ */ listPrepend(
       "center",

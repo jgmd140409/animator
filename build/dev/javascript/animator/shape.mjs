@@ -46,6 +46,24 @@ export const Shape$Line$0 = (value) => value.start;
 export const Shape$Line$end = (value) => value.end;
 export const Shape$Line$1 = (value) => value.end;
 
+export class ColorLine extends $CustomType {
+  constructor(start, end, color) {
+    super();
+    this.start = start;
+    this.end = end;
+    this.color = color;
+  }
+}
+export const Shape$ColorLine = (start, end, color) =>
+  new ColorLine(start, end, color);
+export const Shape$isColorLine = (value) => value instanceof ColorLine;
+export const Shape$ColorLine$start = (value) => value.start;
+export const Shape$ColorLine$0 = (value) => value.start;
+export const Shape$ColorLine$end = (value) => value.end;
+export const Shape$ColorLine$1 = (value) => value.end;
+export const Shape$ColorLine$color = (value) => value.color;
+export const Shape$ColorLine$2 = (value) => value.color;
+
 export class Circle extends $CustomType {
   constructor(center, radius) {
     super();

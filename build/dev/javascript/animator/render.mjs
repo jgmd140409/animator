@@ -18,7 +18,19 @@ import {
   divideInt,
 } from "./gleam.mjs";
 import * as $shape from "./shape.mjs";
-import { Arc, Circle, Color, Curve, Fade, Line, Paint, Point, Polygon, Spiral } from "./shape.mjs";
+import {
+  Arc,
+  Circle,
+  Color,
+  ColorLine,
+  Curve,
+  Fade,
+  Line,
+  Paint,
+  Point,
+  Polygon,
+  Spiral,
+} from "./shape.mjs";
 
 export { reset_clock, set_drawing, set_speed };
 
@@ -381,6 +393,10 @@ function sample(loop$shape) {
       let a = shape.start;
       let b = shape.end;
       return listPrepend(a, listPrepend(b, $List$Empty$const));
+    } else if (shape instanceof ColorLine) {
+      let a = shape.start;
+      let b = shape.end;
+      return listPrepend(a, listPrepend(b, $List$Empty$const));
     } else if (shape instanceof Circle) {
       let center = shape.center;
       let radius = shape.radius;
@@ -418,7 +434,11 @@ function sample(loop$shape) {
 function geometry_of(loop$shape) {
   while (true) {
     let shape = loop$shape;
-    if (shape instanceof Paint) {
+    if (shape instanceof ColorLine) {
+      let a = shape.start;
+      let b = shape.end;
+      return new Line(a, b);
+    } else if (shape instanceof Paint) {
       let inner = shape.shape;
       loop$shape = inner;
     } else if (shape instanceof Fade) {
@@ -431,7 +451,12 @@ function geometry_of(loop$shape) {
 }
 
 function look(shape) {
-  if (shape instanceof Paint) {
+  if (shape instanceof ColorLine) {
+    let a = shape.start;
+    let b = shape.end;
+    let color = shape.color;
+    return [new Line(a, b), new Solid(color)];
+  } else if (shape instanceof Paint) {
     let inner = shape.shape;
     let color = shape.color;
     return [geometry_of(inner), new Solid(color)];
@@ -500,4 +525,29 @@ export function render_path(path, color) {
     let first = $.head;
     return first;
   }
+}
+
+/**
+ * The polyline a path contributes to Path Runner, ignoring color wrappers.
+ */
+export function network_points(path) {
+  return sample(geometry_of(path.shape));
+}
+
+/**
+ * Make every stroke visible immediately, so a game can use the whole track.
+ */
+export function finish_now(strokes) {
+  return $list.map(
+    strokes,
+    (stroke) => {
+      return new RenderPath(
+        stroke.points,
+        stroke.thickness,
+        stroke.color,
+        0.0,
+        0.0,
+      );
+    },
+  );
 }
