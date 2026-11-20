@@ -568,23 +568,24 @@ function leave(edge, index, dir) {
   return new Choice(index, dir, dx, dy);
 }
 
-function near(x, y, at) {
-  return hypot(x - at.x, y - at.y) <= join_distance;
+function near(x, y, at, reach) {
+  return hypot(x - at.x, y - at.y) <= reach;
 }
 
-function junctions(loop$edges, loop$at, loop$index, loop$acc) {
+function junctions(loop$edges, loop$at, loop$index, loop$acc, loop$reach) {
   while (true) {
     let edges = loop$edges;
     let at = loop$at;
     let index = loop$index;
     let acc = loop$acc;
+    let reach = loop$reach;
     if (edges instanceof $Empty) {
       return acc;
     } else {
       let edge = edges.head;
       let rest = edges.tail;
       let _block;
-      let $ = near(edge.ax, edge.ay, at);
+      let $ = near(edge.ax, edge.ay, at, reach);
       if ($) {
         _block = listPrepend(leave(edge, index, 1.0), acc);
       } else {
@@ -592,7 +593,7 @@ function junctions(loop$edges, loop$at, loop$index, loop$acc) {
       }
       let acc$1 = _block;
       let _block$1;
-      let $1 = near(edge.bx, edge.by, at);
+      let $1 = near(edge.bx, edge.by, at, reach);
       if ($1) {
         _block$1 = listPrepend(leave(edge, index, -1.0), acc$1);
       } else {
@@ -603,20 +604,13 @@ function junctions(loop$edges, loop$at, loop$index, loop$acc) {
       loop$at = at;
       loop$index = index + 1;
       loop$acc = acc$2;
+      loop$reach = reach;
     }
   }
 }
 
-function drop_reverse(options, edge, dir) {
-  let kept = $list.filter(
-    options,
-    (choice) => { return (choice.edge !== edge) || (choice.dir === dir); },
-  );
-  if (kept instanceof $Empty) {
-    return options;
-  } else {
-    return kept;
-  }
+function others(options, edge) {
+  return $list.filter(options, (choice) => { return choice.edge !== edge; });
 }
 
 function arrival(edge, dir) {
@@ -634,25 +628,34 @@ function depart(edges, rider, aim_x, aim_y, salt, hops) {
   let $ = unit(travel_delta(edge, rider.dir));
   let ix = $[0];
   let iy = $[1];
-  let options = drop_reverse(
-    junctions(edges, at, 0, $List$Empty$const),
-    rider.edge,
-    rider.dir,
-  );
+  let _block;
+  let $1 = others(junctions(edges, at, 0, $List$Empty$const, 0.5), rider.edge);
+  if ($1 instanceof $Empty) {
+    _block = others(
+      junctions(edges, at, 0, $List$Empty$const, join_distance),
+      rider.edge,
+    );
+  } else {
+    _block = $1;
+  }
+  let options = _block;
   if (options instanceof $Empty) {
     return [new Rider(rider.edge, 0.0, 0.0 - rider.dir), 1];
   } else {
-    let $1 = prefer(aim_x, aim_y, ix, iy);
-    let px = $1[0];
-    let py = $1[1];
-    let _block;
-    let $2 = salt < 0;
-    if ($2) {
-      _block = best(options, px, py);
+    let $2 = prefer(aim_x, aim_y, ix, iy);
+    let px = $2[0];
+    let py = $2[1];
+    let _block$1;
+    let $3 = salt < 0;
+    if ($3) {
+      _block$1 = best(options, px, py);
     } else {
-      _block = nth(options, remainderInt((hops + salt), $list.length(options)));
+      _block$1 = nth(
+        options,
+        remainderInt((hops + salt), $list.length(options)),
+      );
     }
-    let choice = _block;
+    let choice = _block$1;
     return [new Rider(choice.edge, 0.0, choice.dir), 1];
   }
 }
