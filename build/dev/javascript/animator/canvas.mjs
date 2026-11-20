@@ -95,61 +95,106 @@ export function clearFrameListener() {
   frameListener = null;
 }
 
+// Directions currently held, by name ("left", "right", "up", "down").
 const heldKeys = new Set();
+// The last direction pressed. It is remembered after the key is released so a
+// quick tap still takes the next turn, like a buffered move.
+let lastAim = { x: 0, y: 0 };
 
-function aimFromKeys() {
+// Physical key positions, so WASD works on any keyboard layout.
+function direction(event) {
+  switch (event.code) {
+    case "ArrowLeft":
+    case "KeyA":
+      return "left";
+    case "ArrowRight":
+    case "KeyD":
+      return "right";
+    case "ArrowUp":
+    case "KeyW":
+      return "up";
+    case "ArrowDown":
+    case "KeyS":
+      return "down";
+  }
+  switch ((event.key || "").toLowerCase()) {
+    case "arrowleft":
+    case "a":
+      return "left";
+    case "arrowright":
+    case "d":
+      return "right";
+    case "arrowup":
+    case "w":
+      return "up";
+    case "arrowdown":
+    case "s":
+      return "down";
+  }
+  return null;
+}
+
+function heldAim() {
   let x = 0;
   let y = 0;
-  if (heldKeys.has("arrowleft") || heldKeys.has("a")) x -= 1;
-  if (heldKeys.has("arrowright") || heldKeys.has("d")) x += 1;
-  if (heldKeys.has("arrowup") || heldKeys.has("w")) y -= 1;
-  if (heldKeys.has("arrowdown") || heldKeys.has("s")) y += 1;
+  if (heldKeys.has("left")) x -= 1;
+  if (heldKeys.has("right")) x += 1;
+  if (heldKeys.has("up")) y -= 1;
+  if (heldKeys.has("down")) y += 1;
   return { x, y };
+}
+
+// A held direction is sent at full strength, which can turn the runner around.
+// A remembered direction is sent at half strength: enough to choose the next
+// turn, but not enough to reverse.
+function currentAim() {
+  const aim = heldAim();
+  if (aim.x !== 0 || aim.y !== 0) return aim;
+  return { x: lastAim.x * 0.5, y: lastAim.y * 0.5 };
 }
 
 let keyDown = null;
 let keyUp = null;
+let blurred = null;
 
 export function watchKeys(onAim) {
   clearKeys();
   keyDown = (event) => {
-    const key = event.key.toLowerCase();
-    if (!aimKey(key)) return;
+    const dir = direction(event);
+    if (!dir) return;
     event.preventDefault();
-    heldKeys.add(key);
-    const aim = aimFromKeys();
-    onAim(aim.x, aim.y);
+    heldKeys.add(dir);
+    const aim = heldAim();
+    if (aim.x !== 0 || aim.y !== 0) lastAim = aim;
+    const sent = currentAim();
+    onAim(sent.x, sent.y);
   };
   keyUp = (event) => {
-    const key = event.key.toLowerCase();
-    if (!aimKey(key)) return;
-    heldKeys.delete(key);
-    const aim = aimFromKeys();
-    onAim(aim.x, aim.y);
+    const dir = direction(event);
+    if (!dir) return;
+    heldKeys.delete(dir);
+    const sent = currentAim();
+    onAim(sent.x, sent.y);
+  };
+  blurred = () => {
+    heldKeys.clear();
+    const sent = currentAim();
+    onAim(sent.x, sent.y);
   };
   window.addEventListener("keydown", keyDown);
   window.addEventListener("keyup", keyUp);
-}
-
-function aimKey(key) {
-  return (
-    key === "arrowleft" ||
-    key === "arrowright" ||
-    key === "arrowup" ||
-    key === "arrowdown" ||
-    key === "a" ||
-    key === "d" ||
-    key === "w" ||
-    key === "s"
-  );
+  window.addEventListener("blur", blurred);
 }
 
 export function clearKeys() {
   if (keyDown) window.removeEventListener("keydown", keyDown);
   if (keyUp) window.removeEventListener("keyup", keyUp);
+  if (blurred) window.removeEventListener("blur", blurred);
   keyDown = null;
   keyUp = null;
+  blurred = null;
   heldKeys.clear();
+  lastAim = { x: 0, y: 0 };
 }
 
 function frame(ts) {

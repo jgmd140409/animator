@@ -664,7 +664,18 @@ function move_enemies(
 }
 
 function move(edges, rider, distance, aim_x, aim_y, salt, hops) {
-  return travel(edges, rider, distance, aim_x, aim_y, salt, hops, 0)[0];
+  let $ = unit(travel_delta(edge_at(edges, rider.edge), rider.dir));
+  let ix = $[0];
+  let iy = $[1];
+  let _block;
+  let $1 = ((aim_x * ix) + (aim_y * iy)) < -0.5;
+  if ($1) {
+    _block = new Rider(rider.edge, 1.0 - rider.t, 0.0 - rider.dir);
+  } else {
+    _block = rider;
+  }
+  let rider$1 = _block;
+  return travel(edges, rider$1, distance, aim_x, aim_y, salt, hops, 0)[0];
 }
 
 export function step(run, dt, aim_x, aim_y) {
