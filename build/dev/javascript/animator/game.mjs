@@ -252,6 +252,47 @@ export function fresh(edges) {
   );
 }
 
+function crossings(loop$edge, loop$others, loop$acc) {
+  while (true) {
+    let edge = loop$edge;
+    let others = loop$others;
+    let acc = loop$acc;
+    if (others instanceof $Empty) {
+      return acc;
+    } else {
+      let other = others.head;
+      let rest = others.tail;
+      let rx = edge.bx - edge.ax;
+      let ry = edge.by - edge.ay;
+      let qx = other.bx - other.ax;
+      let qy = other.by - other.ay;
+      let denom = (rx * qy) - (ry * qx);
+      let _block;
+      let $ = $float.absolute_value(denom) < 1e-6;
+      if ($) {
+        _block = acc;
+      } else {
+        let wx = other.ax - edge.ax;
+        let wy = other.ay - edge.ay;
+        let s = divideFloat(((wx * qy) - (wy * qx)), denom);
+        let u = divideFloat(((wx * ry) - (wy * rx)), denom);
+        let inside_other = (u >= -0.001) && (u <= 1.001);
+        let away_from_ends = ((s * edge.length) > 4.0) && (((1.0 - s) * edge.length) > 4.0);
+        let $1 = inside_other && away_from_ends;
+        if ($1) {
+          _block = listPrepend(s, acc);
+        } else {
+          _block = acc;
+        }
+      }
+      let acc$1 = _block;
+      loop$edge = edge;
+      loop$others = rest;
+      loop$acc = acc$1;
+    }
+  }
+}
+
 function hypot(x, y) {
   let $ = $float.square_root((x * x) + (y * y));
   if ($ instanceof Ok) {
@@ -293,8 +334,47 @@ function edges_along(loop$points) {
   }
 }
 
+function split_edge(edge, cuts) {
+  if (cuts instanceof $Empty) {
+    return listPrepend(edge, $List$Empty$const);
+  } else {
+    let _block;
+    let _pipe = $list.sort(cuts, $float.compare);
+    _block = $list.map(
+      _pipe,
+      (s) => {
+        return new Point(
+          edge.ax + ((edge.bx - edge.ax) * s),
+          edge.ay + ((edge.by - edge.ay) * s),
+        );
+      },
+    );
+    let inner = _block;
+    return edges_along(
+      $list.flatten(
+        listPrepend(
+          listPrepend(new Point(edge.ax, edge.ay), $List$Empty$const),
+          listPrepend(
+            inner,
+            listPrepend(
+              listPrepend(new Point(edge.bx, edge.by), $List$Empty$const),
+              $List$Empty$const,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 export function edges_of(polylines) {
-  return $list.flat_map(polylines, edges_along);
+  let edges = $list.flat_map(polylines, edges_along);
+  return $list.flat_map(
+    edges,
+    (edge) => {
+      return split_edge(edge, crossings(edge, edges, $List$Empty$const));
+    },
+  );
 }
 
 export function begin(polylines) {
